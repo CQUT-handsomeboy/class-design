@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import fire
 import logging
+import io
 
 from matplotlib import pyplot as plt
 from pathlib import Path
@@ -46,8 +47,13 @@ def image_statistics(image):
     """
     统计图像的直方图并绘制。
     :param image: 图像对象
+    :return: 直方图的numpy数组
     """
     logging.info("Calculating and plotting image statistics")
+
+    # 创建一个内存中的字节流
+    buf = io.BytesIO()
+
     if len(image.shape) == 3:  # 彩色图像
         colors = ("b", "g", "r")
         for i, color in enumerate(colors):
@@ -58,9 +64,23 @@ def image_statistics(image):
         hist = cv2.calcHist([image], [0], None, [256], [0, 256])
         plt.plot(hist, color="black")
         plt.title("Grey histogram")
+
     plt.xlabel("Pixel value")
     plt.ylabel("Number of pixels")
-    plt.show()
+
+    # 将绘制的图形保存到内存中的字节流
+    plt.savefig(buf, format="png")
+    plt.close()
+
+    # 将字节流转换为numpy数组
+    buf.seek(0)
+    img_array = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+    buf.close()
+
+    # 使用OpenCV解码图像数组
+    img_array = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+    return img_array
 
 
 def enhance_image(image, method):
@@ -192,14 +212,21 @@ def segment_image(image, method="threshold", **params):
         (255, 0, 0),
         2,
     )
+    
+    # Convert image to grayscale if it's not already
+    if len(image.shape) == 3 and image.shape[2] == 3:
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_image = image
+    
     if method == "threshold":
         thresh_value = params.get("thresh_value", 127)
         max_value = params.get("max_value", 255)
-        _, segmented = cv2.threshold(image, thresh_value, max_value, cv2.THRESH_BINARY)
+        _, segmented = cv2.threshold(gray_image, thresh_value, max_value, cv2.THRESH_BINARY)
         return segmented
 
     elif method == "otsu":
-        _, segmented = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, segmented = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return segmented
 
     else:
@@ -244,11 +271,13 @@ def main(image_path: str, model_file_path: str):
         enhance_image(sample_image.copy(), "hist_equal"),
         enhance_image(sample_image.copy(), "contrast_stretch"),
         enhance_image(sample_image.copy(), "adaptive_gamma"),
+        image_statistics(sample_image.copy()),
         f1 := spatial_filtering(sample_image.copy(), "mean"),
         f2 := spatial_filtering(sample_image.copy(), "median"),
         f3 := spatial_filtering(sample_image.copy(), "bilateral"),
         *rgb_to_his(sample_image.copy()),
         segment_image(sample_image.copy(), "threshold"),
+        segment_image(sample_image.copy(), "otsu"),
         yolov5_detect(sample_image.copy()),
         yolov5_detect(f1.copy()),
         yolov5_detect(f2.copy()),
