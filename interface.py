@@ -212,21 +212,25 @@ def segment_image(image, method="threshold", **params):
         (255, 0, 0),
         2,
     )
-    
+
     # Convert image to grayscale if it's not already
     if len(image.shape) == 3 and image.shape[2] == 3:
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
         gray_image = image
-    
+
     if method == "threshold":
         thresh_value = params.get("thresh_value", 127)
         max_value = params.get("max_value", 255)
-        _, segmented = cv2.threshold(gray_image, thresh_value, max_value, cv2.THRESH_BINARY)
+        _, segmented = cv2.threshold(
+            gray_image, thresh_value, max_value, cv2.THRESH_BINARY
+        )
         return segmented
 
     elif method == "otsu":
-        _, segmented = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, segmented = cv2.threshold(
+            gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
         return segmented
 
     else:
@@ -250,23 +254,8 @@ def yolov5_detect(image):
         return r_plot
 
 
-def show(*images):
-    for i, image in enumerate(images):
-        cv2.imshow(str(i), image)
-    cv2.waitKey(0)
-
-
-def main(image_path: str, model_file_path: str):
-    assert Path(image_path).exists(), "图片文件不存在"
-    assert Path(model_file_path).exists(), "YOLOv5模型文件不存在"
-    App.model = YOLO(model_file_path)
-    original_image = cv2.imread(image_path)
-    original_height, original_width = original_image.shape[:2]
-    target_height = 525
-    aspect_ratio = original_width / original_height
-    target_width = int(target_height * aspect_ratio)
-    sample_image = cv2.resize(original_image, (target_width, target_height))
-    show(
+def compose(sample_image):
+    return (
         sample_image.copy(),
         enhance_image(sample_image.copy(), "hist_equal"),
         enhance_image(sample_image.copy(), "contrast_stretch"),
@@ -283,6 +272,25 @@ def main(image_path: str, model_file_path: str):
         yolov5_detect(f2.copy()),
         yolov5_detect(f3.copy()),
     )
+
+
+def show(*images):
+    for i, image in enumerate(images):
+        cv2.imshow(str(i), image)
+    cv2.waitKey(0)
+
+
+def main(image_path: str, model_file_path: str):
+    assert Path(image_path).exists(), "图片文件不存在"
+    assert Path(model_file_path).exists(), "YOLOv5模型文件不存在"
+    App.model = YOLO(model_file_path)
+    original_image = cv2.imread(image_path)
+    original_height, original_width = original_image.shape[:2]
+    target_height = 525
+    aspect_ratio = original_width / original_height
+    target_width = int(target_height * aspect_ratio)
+    sample_image = cv2.resize(original_image, (target_width, target_height))
+    show(*compose(sample_image))
 
 
 if __name__ == "__main__":
