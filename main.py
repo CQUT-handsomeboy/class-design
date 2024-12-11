@@ -5,6 +5,12 @@ import fire
 
 from matplotlib import pyplot as plt
 from pathlib import Path
+from ultralytics import YOLO
+
+
+class App:
+    model: None | YOLO = None
+
 
 def open_image(file_path):
     """
@@ -123,18 +129,36 @@ def rgb_to_his(image):
     :param image: RGB图像对象
     :return: H、I、S分量图
     """
-    cv2.putText(
-        image,
-        f"Method: rgb_to_his",
-        (10, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (255, 0, 0),
-        2,
+    # 将图像从BGR转换为RGB（OpenCV默认读取为BGR）
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # 分离RGB通道
+    r, g, b = cv2.split(image)
+
+    # 计算I（亮度）分量
+    I = (r + g + b) / 3
+
+    # 计算S（饱和度）分量
+    min_rgb = np.minimum(np.minimum(r, g), b)
+    S = 1 - 3 * min_rgb / (r + g + b + 1e-6)  # 防止除零错误
+
+    # 计算H（色调）分量
+    theta = np.arccos(
+        (0.5 * ((r - g) + (r - b))) / (np.sqrt((r - g) ** 2 + (r - b) * (g - b)) + 1e-6)
     )
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    return h, s, v
+    H = np.where(b <= g, theta, 2 * np.pi - theta)
+    H = H / (2 * np.pi)  # 将H值归一化到[0, 1]范围
+
+    # 修复H值范围和NaN值
+    H = np.clip(H, 0, 1)  # 确保H值在[0, 1]范围内
+    H = np.nan_to_num(H, nan=0.0)  # 将NaN值替换为0
+
+    # 将H、I、S分量转换为8位无符号整数（0-255）
+    H = (H * 255).astype(np.uint8)
+    I = (I).astype(np.uint8)
+    S = (S * 255).astype(np.uint8)
+
+    return H, I, S
 
 
 def segment_image(image, method="threshold", **params):
@@ -168,25 +192,43 @@ def segment_image(image, method="threshold", **params):
         raise ValueError(f"未知方法: {method}")
 
 
+def yolov5_detect(image):
+    results = App.model(image)
+    for r in results:
+        r_plot = r.plot()
+        return r_plot
+
+
 def show(*images):
     for i, image in enumerate(images):
         cv2.imshow(str(i), image)
     cv2.waitKey(0)
 
 
-def main(image_path:str):
-    assert Path(image_path).exists(),"图片文件不存在"
-    sample_image = cv2.resize(cv2.imread(image_path), (400, 525)) # 缩放的逻辑需要调整
+def main(image_path: str, model_file_path: str):
+    assert Path(image_path).exists(), "图片文件不存在"
+    assert Path(model_file_path).exists(), "YOLOv5模型文件不存在"
+    App.model = YOLO(model_file_path)
+    original_image = cv2.imread(image_path)
+    original_height, original_width = original_image.shape[:2]
+    target_height = 525
+    aspect_ratio = original_width / original_height
+    target_width = int(target_height * aspect_ratio)
+    sample_image = cv2.resize(original_image, (target_width, target_height))
     show(
         sample_image.copy(),
         enhance_image(sample_image.copy(), "hist_equal"),
         enhance_image(sample_image.copy(), "contrast_stretch"),
         enhance_image(sample_image.copy(), "adaptive_gamma"),
-        spatial_filtering(sample_image.copy(), "mean"),
-        spatial_filtering(sample_image.copy(), "median"),
-        spatial_filtering(sample_image.copy(), "bilateral"),
+        f1 := spatial_filtering(sample_image.copy(), "mean"),
+        f2 := spatial_filtering(sample_image.copy(), "median"),
+        f3 := spatial_filtering(sample_image.copy(), "bilateral"),
         *rgb_to_his(sample_image.copy()),
         segment_image(sample_image.copy(), "threshold"),
+        yolov5_detect(sample_image.copy()),
+        yolov5_detect(f1.copy()),
+        yolov5_detect(f2.copy()),
+        yolov5_detect(f3.copy()),
     )
 
 

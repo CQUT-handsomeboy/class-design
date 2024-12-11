@@ -12,6 +12,7 @@ opencv-python = "^4.10.0.84"
 matplotlib = "^3.9.3"
 marimo = "^0.9.33"
 fire = "^0.7.0"
+ultralytics = "^8.3.49"
 
 
 [tool.poetry.group.dev.dependencies]
