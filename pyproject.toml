@@ -13,6 +13,7 @@ matplotlib = "^3.9.3"
 marimo = "^0.9.33"
 fire = "^0.7.0"
 ultralytics = "^8.3.49"
+gradio = "^5.8.0"
 
 
 [tool.poetry.group.dev.dependencies]
