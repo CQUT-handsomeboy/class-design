@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "class-design"
+version = "1.0.0"
+description = ""
+authors = ["Hanjiang <17830831606@163.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+opencv-python = "^4.10.0.84"
+matplotlib = "^3.9.3"
+marimo = "^0.9.33"
+fire = "^0.7.0"
+
+
+[tool.poetry.group.dev.dependencies]
+icecream = "^2.1.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
