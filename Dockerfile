@@ -1,5 +1,5 @@
 # 使用官方的Python基础镜像
-FROM python:3.9-slim
+FROM python:3.12-alpine
 
 # 安装Poetry
 RUN pip install poetry
