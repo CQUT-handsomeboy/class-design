@@ -11,7 +11,7 @@ from ultralytics import YOLO
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="app.log",
+    filename=Path("./logs/app.log"),
     filemode="a",
 )
 

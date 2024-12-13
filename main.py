@@ -3,15 +3,15 @@ from interface import *
 from pathlib import Path
 
 
-def various_operations(sample_image, file):
+def various_operations(sample_image, file_path):
 
-    if file is None:
+    if file_path is None:
         raise gr.Error("可恶，模型文件没选中啊💥!", duration=5)
 
-    if Path(file).suffix != ".pt":
+    if Path(file_path).suffix != ".pt":
         raise gr.Error("可恶，模型文件后缀不是.pt啊💥!", duration=5)
 
-    App.model = YOLO(file)
+    App.model = YOLO(file_path)
 
     gallery = tuple(
         zip(
@@ -37,16 +37,21 @@ def various_operations(sample_image, file):
             ),
         )
     )
+    gr.Info("日志文件：logs/app.log")
 
     return gallery
 
 
-demo = gr.Interface(
-    fn=various_operations,
-    inputs=["image", "file"],
-    outputs=gr.Gallery(label="处理后的结果"),
-    flagging_mode="never",
-)
-
+with gr.Blocks() as demo:
+    sample_image = gr.Image(type="numpy", label="输入图片")
+    model_file_path = gr.File(
+        label="模型文件", file_types=[".pt"], type="filepath"
+    )
+    gallery = gr.Gallery(label="图像处理结果")
+    submit_button = gr.Button("处理").click(
+        fn=various_operations,
+        inputs=[sample_image, model_file_path],
+        outputs=gallery,
+    )
 
 demo.launch(server_port=8080)
